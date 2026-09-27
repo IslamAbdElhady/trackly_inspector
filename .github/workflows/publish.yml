@@ -1,0 +1,46 @@
+# Publishes to pub.dev when a version tag is pushed.
+#
+# To release:
+#   1. Bump `version` in pubspec.yaml and add a `## <version>` entry to
+#      CHANGELOG.md, then commit and push.
+#   2. git tag v<version> && git push origin v<version>
+#
+# Requires automated publishing to be enabled for this repository on
+# https://pub.dev/packages/trackly_inspector/admin with the tag pattern
+# `v{{version}}`.
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Check version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag matches pubspec.yaml and CHANGELOG.md
+        run: |
+          version=$(sed -n 's/^version: *//p' pubspec.yaml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match version $version in pubspec.yaml"
+            exit 1
+          fi
+          if ! grep -qx "## $version" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $version' entry"
+            exit 1
+          fi
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: [version, ci]
+    permissions:
+      id-token: write # Lets pub.dev verify this run through OIDC.
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1

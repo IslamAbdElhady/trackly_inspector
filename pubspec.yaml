@@ -1,0 +1,39 @@
+name: trackly_inspector
+description: An in-app network and log inspector for Flutter. See every Dio and http call with headers and bodies, search them, and copy as cURL.
+version: 0.1.0
+repository: https://github.com/IslamAbdElhady/trackly_inspector
+issue_tracker: https://github.com/IslamAbdElhady/trackly_inspector/issues
+
+topics:
+  - network
+  - http
+  - dio
+  - debugging
+  - inspector
+
+environment:
+  sdk: ^3.7.0
+  flutter: ">=3.29.0"
+
+dependencies:
+  dio: ^5.4.0
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  sensors_plus: ">=6.0.0 <8.0.0"
+  trackly_logger: ^0.1.0
+
+dev_dependencies:
+  flutter_lints: ">=5.0.0 <7.0.0"
+  flutter_test:
+    sdk: flutter
+
+screenshots:
+  - description: Every request with its method, status, duration, and size.
+    path: screenshots/network.png
+  - description: Request details with a ready-to-copy cURL command.
+    path: screenshots/details.png
+  - description: JSON responses as a collapsible tree, like Chrome DevTools.
+    path: screenshots/json.png
+  - description: Logs from trackly_logger, with errors and stack traces.
+    path: screenshots/logs.png

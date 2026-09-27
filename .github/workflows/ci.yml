@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call: # Run by publish.yml before publishing.
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Flutter ${{ matrix.flutter }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest supported Flutter (from pubspec.yaml) and the latest stable.
+        flutter: ['3.29.0', any]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ matrix.flutter }}
+      - run: flutter pub get
+      - name: Check formatting
+        if: matrix.flutter == 'any'
+        run: dart format --output=none --set-exit-if-changed lib test example/lib
+      - run: flutter analyze
+      - run: flutter test
+      - name: Publish dry run
+        if: matrix.flutter == 'any'
+        run: flutter pub publish --dry-run
