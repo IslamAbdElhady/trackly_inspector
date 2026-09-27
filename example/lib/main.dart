@@ -25,14 +25,15 @@ class DemoApp extends StatelessWidget {
       title: 'Trackly Inspector',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-      builder: (context, child) => TracklyInspector(
-        triggers: const {
-          TracklyTrigger.bubble,
-          TracklyTrigger.longPress,
-          TracklyTrigger.shake,
-        },
-        child: child!,
-      ),
+      builder:
+          (context, child) => TracklyInspector(
+            triggers: const {
+              TracklyTrigger.bubble,
+              TracklyTrigger.longPress,
+              TracklyTrigger.shake,
+            },
+            child: child!,
+          ),
       home: const DemoPage(),
     );
   }
