@@ -1,3 +1,7 @@
+## 0.1.1
+
+* Retake the screenshots with a clean status bar.
+
 ## 0.1.0
 
 * Initial release.
