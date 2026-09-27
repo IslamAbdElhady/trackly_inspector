@@ -1,3 +1,11 @@
+## 0.2.1
+
+* Inspect mode is much faster on apps with a lot of recorded traffic:
+  response bodies are decoded once and reused, and one search budget is
+  shared across calls instead of one per call.
+* The label no longer collapses when you touch something flush against the
+  right edge of the screen.
+
 ## 0.2.0
 
 * **Inspect mode**: touch any text or image on screen to find the request its
