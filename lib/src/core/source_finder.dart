@@ -88,8 +88,14 @@ List<SourceMatch> findSources({
   final urls = imageUrls.toSet();
   if (wanted.isEmpty && urls.isEmpty) return const [];
 
+  // One budget for the whole search, not one per call. [calls] is newest
+  // first, so when an app has hundreds of large responses recorded the
+  // budget is spent on the calls most likely to be the source.
+  var visited = 0;
+
   final matches = <SourceMatch>[];
   for (final call in calls) {
+    if (visited > _nodeBudget) break;
     if (call.statusCode == null) continue;
 
     SourceMatch? best;
@@ -114,13 +120,12 @@ List<SourceMatch> findSources({
 
     final body = call.responseBody;
     if (body != null) {
-      final json = _tryDecode(body);
+      final json = _decodedBodies[call] ??= _tryDecode(body);
       if (identical(json, _notJson)) {
         consider(r'$', body, _matchText(body, wanted, urls, rawBody: true));
       } else {
-        var visited = 0;
         void walk(Object? node, String path) {
-          if (visited++ > 50000) return;
+          if (visited++ > _nodeBudget) return;
           if (node is Map) {
             for (final entry in node.entries) {
               walk(entry.value, '$path.${entry.key}');
@@ -188,6 +193,14 @@ class _Wanted {
     return value == null || !negative ? value : -value;
   }
 }
+
+/// How many JSON values a single search may look at, across every call.
+const _nodeBudget = 200000;
+
+/// Response bodies already decoded, so touching the screen a second time
+/// doesn't parse every recorded body again. Keyed on the call, so entries
+/// go away with the calls themselves.
+final _decodedBodies = Expando<Object>('trackly_inspector.decodedBody');
 
 final _notJson = Object();
 
