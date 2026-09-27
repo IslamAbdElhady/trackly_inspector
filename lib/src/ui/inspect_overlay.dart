@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'element_picker.dart';
@@ -128,7 +130,9 @@ class _Label extends StatelessWidget {
     final below = rect.bottom + 40 < screen.height;
     final summary = picked.isEmpty ? 'Nothing to inspect' : picked.summary;
     return Positioned(
-      left: rect.left.clamp(8, screen.width - 8),
+      // Leave room for the label itself, so something flush against the
+      // right edge doesn't get a zero-width box.
+      left: math.max(8.0, math.min(rect.left, screen.width - 160)),
       top: below ? rect.bottom + 6 : null,
       bottom: below ? null : screen.height - rect.top + 6,
       right: 8,
