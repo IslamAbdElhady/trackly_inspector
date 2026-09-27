@@ -124,7 +124,7 @@ void main() {
 
   testWidgets('the close button leaves inspect mode', (tester) async {
     await startInspecting(tester);
-    await tester.tap(find.bySemanticsLabel('Stop inspecting'));
+    await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
 
     expect(find.text(_banner), findsNothing);
