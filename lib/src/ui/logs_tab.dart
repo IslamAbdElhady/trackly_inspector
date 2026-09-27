@@ -139,7 +139,7 @@ class _LogTileState extends State<_LogTile> {
     final color = levelColor(record.level);
     final extra = record.extra;
     final hasDetails =
-        record.caller != null ||
+        record.location != null ||
         (extra != null && extra.isNotEmpty) ||
         record.error != null ||
         record.stackTrace != null;
@@ -199,8 +199,8 @@ class _LogTileState extends State<_LogTile> {
             ),
             if (_expanded && hasDetails) ...[
               const SizedBox(height: 8),
-              if (record.caller != null)
-                _Detail('at', record.caller!, colors.outline),
+              if (record.location case final location?)
+                _Detail('at', location.link, colors.outline),
               if (extra != null && extra.isNotEmpty)
                 _Detail(
                   'extra',

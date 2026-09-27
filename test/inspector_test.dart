@@ -127,6 +127,14 @@ void main() {
     await tester.tap(find.text('Logs (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Token expires soon'), findsOneWidget);
+
+    // Expanding the log shows the full, clickable location.
+    await tester.tap(find.text('Token expires soon'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(RegExp(r'inspector_test\.dart:\d+:\d+$')),
+      findsOneWidget,
+    );
     expect(find.text('Auth'), findsOneWidget);
   });
 

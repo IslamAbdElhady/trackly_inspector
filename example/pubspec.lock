@@ -267,15 +267,15 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.2.0"
+    version: "0.3.0"
   trackly_logger:
     dependency: transitive
     description:
       name: trackly_logger
-      sha256: be60845746bffda78c616b5ca2f74790c19d80e718842355d9e302c6b851f88a
+      sha256: "438ce00dda894ecfffcb7a5547d19ae01c3cdde551ce57d7b7736950aa53bd03"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.2.0"
   typed_data:
     dependency: transitive
     description:

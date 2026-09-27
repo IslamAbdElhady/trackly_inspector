@@ -1,3 +1,15 @@
+## 0.3.0
+
+* Uses `trackly_logger` 0.2.0, which this package re-exports:
+  * Logs end with a clickable location, such as
+    `(package:app/login_page.dart:42:7)`, that opens the code in VS Code and
+    Android Studio.
+  * Colors are off by default on iOS, where logs showed the color codes as
+    text.
+  * **Breaking**: `TracklyRecord`'s `caller` constructor parameter is replaced
+    by `location`. Reading `record.caller` still works.
+* The Logs tab shows each log's full location.
+
 ## 0.2.1
 
 * Inspect mode is much faster on apps with a lot of recorded traffic:
