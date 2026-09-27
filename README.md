@@ -6,12 +6,14 @@
 
 An in-app network and log inspector for Flutter, like the Network tab of your
 browser's DevTools, inside your app. See every Dio and `http` call with its
-headers and bodies, search them, and copy any request as a cURL command.
+headers and bodies, search them, and copy any request as a cURL command. Or
+touch anything on screen to find the request its data came from.
 
 <p>
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/network.png" width="200" alt="Request list">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/inspect.png" width="200" alt="Inspect mode: the request a price came from">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/source.png" width="200" alt="The matching field, highlighted in the response">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/details.png" width="200" alt="Request details with cURL">
-  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/json.png" width="200" alt="JSON preview">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/logs.png" width="200" alt="Logs">
 </p>
 
@@ -21,6 +23,8 @@ headers and bodies, search them, and copy any request as a cURL command.
   requests that are in progress, succeeded, or failed (timeouts, no connection).
 - **Search and filters**: search URLs, status codes, and bodies. Filter by
   status (2xx, 4xx, 5xx, failed, pending) and method.
+- **Inspect mode**: touch any text or image in your app to find the request
+  it came from, with the matching field highlighted in the response.
 - **Copy as cURL**, or copy the URL, either body, or a full report.
 - **JSON viewer**: a collapsible tree like Chrome's Preview tab, and a raw view
   with syntax colors and search highlighting.
@@ -79,6 +83,37 @@ fingers on the screen. You can also open it from code, e.g. from a debug menu:
 ```dart
 TracklyInspector.show();
 ```
+
+## Inspect mode
+
+Like the element picker in Chrome DevTools: touch any text or image in your
+app, and see which request it came from.
+
+1. **Long-press the floating bubble**, or tap the arrow at the top of the
+   inspector. You can also start it from code with `TracklyInspector.inspect()`.
+2. **Touch anything** that shows data: a name, a price, a picture. What's under
+   your finger is outlined as you move it, and your touches don't reach the
+   app, so nothing gets pressed by accident.
+3. **Pick a request** from the results. It opens on the response, with the
+   matching field revealed and highlighted.
+
+The inspector finds the request by looking for what's on screen in every
+recorded response:
+
+| On screen | Matches |
+| --- | --- |
+| `Leanne Graham` | `"name": "Leanne Graham"` (ignoring case and spacing) |
+| `EGP 1,250.00`, `١٢٥٠` | `"total": 1250` |
+| `Sunt aut facere…` | `"title": "sunt aut facere repellat"` |
+| A network image | Its URL in any response, or the image request itself |
+
+When the app changes a value before showing it, like a formatted date or a
+translated status, nothing matches. The inspector then lists the requests made
+while the current screen was showing, which usually include the right one.
+
+Images are recognized when they come from `Image.network`, `NetworkImage`, or
+a provider with a `url`, such as `CachedNetworkImageProvider`. For
+`Image.network` and `Image(image: ...)`, this needs a debug build.
 
 ## Logs
 

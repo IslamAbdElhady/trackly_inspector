@@ -1,3 +1,14 @@
+## 0.2.0
+
+* **Inspect mode**: touch any text or image on screen to find the request its
+  data came from. The matching field opens highlighted in the response.
+  * Start it by long-pressing the bubble, from the arrow in the inspector, or
+    with `TracklyInspector.inspect()`.
+  * Matches exact text, formatted numbers (`EGP 1,250.00` and `1250`), Arabic
+    digits, shortened text, and image URLs.
+  * When nothing matches, lists the requests made on the current screen.
+* Call details show which screen made the request.
+
 ## 0.1.1
 
 * Retake the screenshots with a clean status bar.

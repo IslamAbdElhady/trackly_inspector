@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../core/calls.dart';
 import 'body_view.dart';
+import 'screens.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
 /// The details of one call: overview, request, and response.
 class CallPage extends StatelessWidget {
   /// Creates a page for [call], rebuilt when [controller] changes.
-  const CallPage({super.key, required this.controller, required this.call});
+  const CallPage({
+    super.key,
+    required this.controller,
+    required this.call,
+    this.initialTab = 0,
+    this.highlightPath,
+    this.highlightValue,
+  });
 
   /// Notifies when [call] gets its response.
   final TracklyInspectorController controller;
@@ -16,15 +24,34 @@ class CallPage extends StatelessWidget {
   /// The call to show.
   final TracklyHttpCall call;
 
+  /// The tab to open: 0 for Overview, 1 for Request, 2 for Response.
+  final int initialTab;
+
+  /// A JSON path in the response to reveal and highlight.
+  final String? highlightPath;
+
+  /// A value to highlight when the response isn't JSON.
+  final String? highlightValue;
+
   /// A route to this page.
   static Route<void> route(
     TracklyInspectorController controller,
-    TracklyHttpCall call,
-  ) => MaterialPageRoute(
-    settings: const RouteSettings(name: 'trackly_inspector/call'),
+    TracklyHttpCall call, {
+    int initialTab = 0,
+    String? highlightPath,
+    String? highlightValue,
+  }) => MaterialPageRoute(
+    settings: const RouteSettings(name: '$inspectorRoutePrefix/call'),
     builder:
-        (_) =>
-            InspectorScope(child: CallPage(controller: controller, call: call)),
+        (_) => InspectorScope(
+          child: CallPage(
+            controller: controller,
+            call: call,
+            initialTab: initialTab,
+            highlightPath: highlightPath,
+            highlightValue: highlightValue,
+          ),
+        ),
   );
 
   @override
@@ -34,6 +61,7 @@ class CallPage extends StatelessWidget {
       builder:
           (context, _) => DefaultTabController(
             length: 3,
+            initialIndex: initialTab,
             child: Scaffold(
               appBar: AppBar(
                 titleSpacing: 0,
@@ -75,7 +103,11 @@ class CallPage extends StatelessWidget {
                 children: [
                   _Overview(call: call),
                   _Request(call: call),
-                  _Response(call: call),
+                  _Response(
+                    call: call,
+                    highlightPath: highlightPath,
+                    highlightValue: highlightValue,
+                  ),
                 ],
               ),
             ),
@@ -231,6 +263,7 @@ class _Overview extends StatelessWidget {
           MapEntry('Method', call.method),
           MapEntry('Status', status),
           MapEntry('Client', call.client),
+          if (screenNameOf(call) case final screen?) MapEntry('Screen', screen),
           MapEntry('Started', formatTime(call.startTime)),
           if (call.endTime != null)
             MapEntry('Finished', formatTime(call.endTime!)),
@@ -310,9 +343,15 @@ class _Request extends StatelessWidget {
 }
 
 class _Response extends StatelessWidget {
-  const _Response({required this.call});
+  const _Response({
+    required this.call,
+    this.highlightPath,
+    this.highlightValue,
+  });
 
   final TracklyHttpCall call;
+  final String? highlightPath;
+  final String? highlightValue;
 
   @override
   Widget build(BuildContext context) {
@@ -333,7 +372,12 @@ class _Response extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(child: _Headers(call.responseHeaders)),
         const SliverToBoxAdapter(child: SectionTitle('Body')),
-        BodyView(body: call.responseBody, title: 'Response body'),
+        BodyView(
+          body: call.responseBody,
+          title: 'Response body',
+          highlightPath: highlightPath,
+          highlightValue: highlightValue,
+        ),
       ],
     );
   }

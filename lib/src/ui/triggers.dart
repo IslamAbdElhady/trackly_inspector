@@ -19,6 +19,7 @@ class InspectorBubble extends StatefulWidget {
     required this.controller,
     required this.visible,
     required this.onTap,
+    required this.onLongPress,
   });
 
   /// Where the calls come from.
@@ -29,6 +30,9 @@ class InspectorBubble extends StatefulWidget {
 
   /// Called when the bubble is tapped.
   final VoidCallback onTap;
+
+  /// Called when the bubble is long-pressed.
+  final VoidCallback onLongPress;
 
   @override
   State<InspectorBubble> createState() => _InspectorBubbleState();
@@ -67,6 +71,7 @@ class _InspectorBubbleState extends State<InspectorBubble> {
           duration: const Duration(milliseconds: 150),
           child: GestureDetector(
             onTap: widget.onTap,
+            onLongPress: widget.onLongPress,
             onPanStart:
                 (_) => setState(() {
                   _dragging = true;

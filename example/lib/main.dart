@@ -110,6 +110,7 @@ class _DemoPageState extends State<DemoPage> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
         children: [
           const _Hint(),
+          const _LiveData(),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             onPressed: _fireAll,
@@ -251,9 +252,9 @@ class _Hint extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.all(14),
         child: Text(
-          'Fire some requests, then open the inspector by tapping the '
-          'floating bubble, holding two fingers on the screen, or shaking '
-          'the device.',
+          'Tap the floating bubble to see every request. Long-press it, '
+          'then touch any name, price, or picture below to find the '
+          'request it came from.',
         ),
       ),
     );
@@ -294,6 +295,100 @@ class _Section extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Data loaded from a real API, to try inspect mode on.
+class _LiveData extends StatefulWidget {
+  const _LiveData();
+
+  @override
+  State<_LiveData> createState() => _LiveDataState();
+}
+
+class _LiveDataState extends State<_LiveData> {
+  Map<String, dynamic>? _user;
+  List<dynamic> _products = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final responses = await Future.wait([
+        dio.get<Map<String, dynamic>>('https://dummyjson.com/users/1'),
+        dio.get<Map<String, dynamic>>(
+          'https://dummyjson.com/products',
+          queryParameters: {
+            'limit': 3,
+            'select': 'title,price,rating,thumbnail',
+          },
+        ),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _user = responses[0].data;
+        _products = responses[1].data?['products'] as List<dynamic>? ?? [];
+      });
+    } catch (error) {
+      trackly.warning('Could not load the demo data', error: error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = _user;
+    if (user == null) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final company = user['company'] as Map<String, dynamic>;
+    final address = user['address'] as Map<String, dynamic>;
+
+    return Card(
+      margin: const EdgeInsets.only(top: 12),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              radius: 24,
+              backgroundImage: NetworkImage(user['image'] as String),
+            ),
+            title: Text(
+              '${user['firstName']} ${user['lastName']}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text('${company['title']} · ${user['email']}'),
+            trailing: Text(address['city'] as String),
+          ),
+          const Divider(height: 1),
+          for (final product in _products.cast<Map<String, dynamic>>())
+            ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  product['thumbnail'] as String,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              title: Text(product['title'] as String),
+              subtitle: Text('Rating ${product['rating']}'),
+              trailing: Text(
+                'EGP ${(product['price'] as num).toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
         ],
       ),
     );

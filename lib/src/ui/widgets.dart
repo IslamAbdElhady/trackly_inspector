@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/calls.dart';
+import '../core/text.dart';
 import 'theme.dart';
 
 /// Gives an inspector page its own theme, English localizations, left-to-right
@@ -43,29 +44,24 @@ Future<void> copyText(BuildContext context, String text, String message) async {
     );
 }
 
-/// Lower-cases [query] and turns Arabic-Indic digits (٠١٢…) into ASCII
-/// digits, so searches typed on an Arabic keyboard still match.
-String normalizeQuery(String query) {
-  final buffer = StringBuffer();
-  for (final rune in query.toLowerCase().runes) {
-    if (rune >= 0x0660 && rune <= 0x0669) {
-      buffer.writeCharCode(0x30 + rune - 0x0660);
-    } else if (rune >= 0x06F0 && rune <= 0x06F9) {
-      buffer.writeCharCode(0x30 + rune - 0x06F0);
-    } else {
-      buffer.writeCharCode(rune);
-    }
-  }
-  return buffer.toString();
-}
+/// Normalizes a search query so it matches text typed on any keyboard.
+String normalizeQuery(String query) => normalizeText(query);
 
 /// A compact search field.
 class SearchField extends StatefulWidget {
   /// Creates a search field that reports every change to [onChanged].
-  const SearchField({super.key, required this.hint, required this.onChanged});
+  const SearchField({
+    super.key,
+    required this.hint,
+    required this.onChanged,
+    this.initialValue = '',
+  });
 
   /// The placeholder text.
   final String hint;
+
+  /// The text the field starts with.
+  final String initialValue;
 
   /// Called with the new query.
   final ValueChanged<String> onChanged;
@@ -75,7 +71,7 @@ class SearchField extends StatefulWidget {
 }
 
 class _SearchFieldState extends State<SearchField> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.initialValue);
 
   @override
   void dispose() {

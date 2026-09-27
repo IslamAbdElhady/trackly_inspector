@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../core/source_finder.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -11,13 +12,25 @@ enum _Mode { tree, raw }
 /// JSON, a raw view with syntax colors, search, and copy.
 class BodyView extends StatefulWidget {
   /// Creates a view of [body].
-  const BodyView({super.key, required this.body, required this.title});
+  const BodyView({
+    super.key,
+    required this.body,
+    required this.title,
+    this.highlightPath,
+    this.highlightValue,
+  });
 
   /// The body text.
   final String? body;
 
   /// Used in the "copied" message, e.g. `Response body`.
   final String title;
+
+  /// A JSON path, e.g. `$.data.name`, to reveal, highlight, and scroll to.
+  final String? highlightPath;
+
+  /// Text to search for when the body isn't JSON.
+  final String? highlightValue;
 
   @override
   State<BodyView> createState() => _BodyViewState();
@@ -33,6 +46,8 @@ class _BodyViewState extends State<BodyView> {
   var _searching = false;
   var _query = '';
   final _expanded = <String>{r'$'};
+  final _highlightKey = GlobalKey();
+  var _revealed = false;
 
   @override
   void initState() {
@@ -58,8 +73,16 @@ class _BodyViewState extends State<BodyView> {
       _isJson = true;
       _pretty = const JsonEncoder.withIndent('  ').convert(_json);
       final json = _json;
-      // Open the first level of small documents.
-      if (json is Map && json.length <= 30) {
+      final highlight = widget.highlightPath;
+      if (highlight != null) {
+        // Open just the objects and arrays that lead to the highlighted value.
+        _mode = _Mode.tree;
+        _expanded
+          ..clear()
+          ..add(r'$')
+          ..addAll(ancestorPaths(highlight));
+      } else if (json is Map && json.length <= 30) {
+        // Open the first level of small documents.
         for (final key in json.keys) {
           _expanded.add('\$.$key');
         }
@@ -67,6 +90,38 @@ class _BodyViewState extends State<BodyView> {
     } on FormatException {
       _isJson = false;
     }
+    final value = widget.highlightValue;
+    if (!_isJson && value != null && value.isNotEmpty) {
+      _searching = true;
+      _query = value;
+    }
+  }
+
+  /// Scrolls the highlighted row into view once it's laid out. Rows far down
+  /// aren't built yet, so first jump near where it should be.
+  void _reveal(int index) {
+    if (_revealed) return;
+    _revealed = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (_highlightKey.currentContext == null) {
+        final position = Scrollable.maybeOf(context)?.position;
+        if (position == null) return;
+        position.jumpTo(
+          (index * 26.0).clamp(0, position.maxScrollExtent).toDouble(),
+        );
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      final row = _highlightKey.currentContext;
+      if (row != null && row.mounted) {
+        await Scrollable.ensureVisible(
+          row,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -165,6 +220,7 @@ class _BodyViewState extends State<BodyView> {
                   Expanded(
                     child: SearchField(
                       hint: 'Search in ${widget.title.toLowerCase()}',
+                      initialValue: _query,
                       onChanged: (value) => setState(() => _query = value),
                     ),
                   ),
@@ -262,6 +318,10 @@ class _BodyViewState extends State<BodyView> {
     }
 
     visit(null, _json, 0, r'$');
+    final highlightIndex = nodes.indexWhere(
+      (node) => node.path == widget.highlightPath,
+    );
+    if (highlightIndex != -1) _reveal(highlightIndex);
     final colors = _JsonColors.of(
       Theme.of(context).brightness == Brightness.dark,
     );
@@ -272,6 +332,8 @@ class _BodyViewState extends State<BodyView> {
         itemCount: nodes.length,
         itemBuilder:
             (context, index) => _NodeRow(
+              key: index == highlightIndex ? _highlightKey : null,
+              highlighted: index == highlightIndex,
               node: nodes[index],
               expanded: _expanded.contains(nodes[index].path),
               colors: colors,
@@ -299,12 +361,15 @@ class _Node {
 
 class _NodeRow extends StatelessWidget {
   const _NodeRow({
+    super.key,
+    required this.highlighted,
     required this.node,
     required this.expanded,
     required this.colors,
     required this.onToggle,
   });
 
+  final bool highlighted;
   final _Node node;
   final bool expanded;
   final _JsonColors colors;
@@ -322,7 +387,14 @@ class _NodeRow extends StatelessWidget {
             value is String ? value : jsonEncode(value),
             node.key == null ? 'Copied JSON' : 'Copied ${node.key}',
           ),
-      child: Padding(
+      child: Container(
+        decoration:
+            highlighted
+                ? BoxDecoration(
+                  color: const Color(0x55FACC15),
+                  borderRadius: BorderRadius.circular(4),
+                )
+                : null,
         padding: EdgeInsets.only(left: node.depth * 16.0, top: 3, bottom: 3),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
