@@ -169,7 +169,7 @@ class _CallTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final path = call.uri.path.isEmpty ? '/' : call.uri.path;
     final query = call.uri.hasQuery ? '?${call.uri.query}' : '';
-    final meta = TextStyle(fontSize: 12, color: colors.onSurfaceVariant);
+    final meta = TextStyle(fontSize: 13, color: colors.onSurfaceVariant);
 
     return InkWell(
       onTap: onTap,
@@ -195,13 +195,17 @@ class _CallTile extends StatelessWidget {
                         TextSpan(text: path),
                         TextSpan(
                           text: query,
-                          style: TextStyle(color: colors.outline),
+                          style: TextStyle(color: colors.onSurfaceVariant),
                         ),
                       ],
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: mono(size: 13, weight: FontWeight.w600),
+                    style: mono(
+                      size: 14.5,
+                      weight: FontWeight.w600,
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -217,7 +221,7 @@ class _CallTile extends StatelessWidget {
                         call.error!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: red),
+                        style: const TextStyle(fontSize: 13, color: red),
                       ),
                     ),
                 ],

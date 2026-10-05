@@ -77,7 +77,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Response tab opens on the JSON tree, with the field revealed.
-    expect(find.text('Preview'), findsOneWidget);
+    expect(find.text('Tree'), findsOneWidget);
     final row = find.ancestor(
       of: find.textContaining('"Leanne Graham"'),
       matching: find.byWidgetPredicate(

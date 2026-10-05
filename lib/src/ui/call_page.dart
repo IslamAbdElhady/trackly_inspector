@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/body.dart';
 import '../core/calls.dart';
 import 'body_view.dart';
 import 'screens.dart';
@@ -92,6 +93,11 @@ class CallPage extends StatelessWidget {
                   _CopyMenu(call: call),
                 ],
                 bottom: const TabBar(
+                  labelStyle: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: TextStyle(fontSize: 15),
                   tabs: [
                     Tab(text: 'Overview'),
                     Tab(text: 'Request'),
@@ -289,7 +295,7 @@ class _Overview extends StatelessWidget {
           ),
           child: SelectableText(
             call.toCurl(),
-            style: mono(size: 12, color: const Color(0xFFE5E7EB)),
+            style: mono(size: 13, color: const Color(0xFFE5E7EB)),
           ),
         ),
       ],
@@ -304,39 +310,42 @@ class _Request extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final query =
-        call.uri.queryParametersAll.entries
-            .expand((e) => e.value.map((value) => MapEntry(e.key, value)))
-            .toList();
-    final form = call.requestFormData;
+    final query = [
+      for (final entry in call.uri.queryParametersAll.entries)
+        for (final value in entry.value) FieldRow(entry.key, value),
+    ];
+    final hasBody = call.requestBody != null || call.requestFormData != null;
 
-    return CustomScrollView(
-      slivers: [
-        if (query.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: SectionTitle('Query parameters (${query.length})'),
+    return _Parts(
+      initial: hasBody ? 2 : (query.isNotEmpty ? 0 : 1),
+      parts: [
+        _Part(
+          'Params',
+          query.length,
+          (_) => _TablePart(rows: query, emptyText: 'No query parameters'),
+        ),
+        _Part(
+          'Headers',
+          call.requestHeaders.length,
+          (_) => _TablePart(
+            rows: [
+              for (final header in call.requestHeaders.entries)
+                FieldRow(header.key, header.value),
+            ],
+            emptyText: 'No headers',
           ),
-          SliverToBoxAdapter(child: KeyValueTable(query)),
-        ],
-        SliverToBoxAdapter(child: _Headers(call.requestHeaders)),
-        if (form != null) ...[
-          SliverToBoxAdapter(child: SectionTitle('Form data (${form.length})')),
-          SliverToBoxAdapter(
-            child: KeyValueTable([
-              for (final field in form)
-                MapEntry(
-                  field.name,
-                  field.isFile
-                      ? '📎 ${field.fileName} (${formatBytes(field.fileSize)})'
-                      : field.value ?? '',
-                ),
-            ]),
+        ),
+        _Part(
+          'Body',
+          null,
+          (_) => BodyView(
+            body: call.requestBody,
+            title: 'Request body',
+            contentType: headerValue(call.requestHeaders, 'content-type'),
+            formData: call.requestFormData,
+            size: call.requestSize,
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ] else ...[
-          const SliverToBoxAdapter(child: SectionTitle('Body')),
-          BodyView(body: call.requestBody, title: 'Request body'),
-        ],
+        ),
       ],
     );
   }
@@ -368,55 +377,107 @@ class _Response extends StatelessWidget {
         message: call.error,
       );
     }
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(child: _Headers(call.responseHeaders)),
-        const SliverToBoxAdapter(child: SectionTitle('Body')),
-        BodyView(
-          body: call.responseBody,
-          title: 'Response body',
-          highlightPath: highlightPath,
-          highlightValue: highlightValue,
+    return _Parts(
+      parts: [
+        _Part(
+          'Body',
+          null,
+          (_) => BodyView(
+            body: call.responseBody,
+            title: 'Response body',
+            contentType: headerValue(call.responseHeaders, 'content-type'),
+            size: call.responseSize,
+            highlightPath: highlightPath,
+            highlightValue: highlightValue,
+          ),
+        ),
+        _Part(
+          'Headers',
+          call.responseHeaders.length,
+          (_) => _TablePart(
+            rows: [
+              for (final header in call.responseHeaders.entries)
+                FieldRow(header.key, header.value),
+            ],
+            emptyText: 'No headers',
+          ),
         ),
       ],
     );
   }
 }
 
-/// A headers table that collapses when there are many headers, so the body
-/// stays in view.
-class _Headers extends StatefulWidget {
-  const _Headers(this.headers);
+class _Part {
+  const _Part(this.label, this.count, this.builder);
 
-  final Map<String, String> headers;
-
-  @override
-  State<_Headers> createState() => _HeadersState();
+  final String label;
+  final int? count;
+  final WidgetBuilder builder;
 }
 
-class _HeadersState extends State<_Headers> {
-  late var _expanded = widget.headers.length <= 6;
+/// Postman-style tabs inside a request or response, e.g. Params, Headers, and
+/// Body. Each part keeps its state when switching.
+class _Parts extends StatefulWidget {
+  const _Parts({required this.parts, this.initial = 0});
+
+  final List<_Part> parts;
+  final int initial;
+
+  @override
+  State<_Parts> createState() => _PartsState();
+}
+
+class _PartsState extends State<_Parts> {
+  late var _selected = widget.initial;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: SectionTitle(
-            'Headers (${widget.headers.length})',
-            trailing: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 20,
-              ),
-            ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Row(
+            children: [
+              for (final (index, part) in widget.parts.indexed)
+                FilterPill(
+                  label:
+                      part.count == null
+                          ? part.label
+                          : '${part.label}  ${part.count}',
+                  selected: index == _selected,
+                  onTap: () => setState(() => _selected = index),
+                ),
+            ],
           ),
         ),
-        if (_expanded) KeyValueTable(widget.headers.entries.toList()),
+        Divider(height: 1, color: colors.outlineVariant),
+        Expanded(
+          child: IndexedStack(
+            index: _selected,
+            children: [
+              for (final part in widget.parts) Builder(builder: part.builder),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _TablePart extends StatelessWidget {
+  const _TablePart({required this.rows, required this.emptyText});
+
+  final List<FieldRow> rows;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.only(top: 12, bottom: 32),
+      children: [FieldTable(rows: rows, emptyText: emptyText)],
     );
   }
 }

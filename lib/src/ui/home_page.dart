@@ -49,7 +49,12 @@ class InspectorHomePage extends StatelessWidget {
             children: [
               Icon(Icons.radar_rounded, size: 22),
               SizedBox(width: 8),
-              Text('Trackly Inspector'),
+              Flexible(
+                child: Text(
+                  'Trackly Inspector',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           actions: [
@@ -60,6 +65,11 @@ class InspectorHomePage extends StatelessWidget {
             ),
           ],
           bottom: TabBar(
+            labelStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: const TextStyle(fontSize: 15),
             tabs: [
               Tab(
                 child: ListenableBuilder(

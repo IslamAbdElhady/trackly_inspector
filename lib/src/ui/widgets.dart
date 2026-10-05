@@ -88,12 +88,12 @@ class _SearchFieldState extends State<SearchField> {
         setState(() {});
         widget.onChanged(value);
       },
-      style: const TextStyle(fontSize: 14),
+      style: const TextStyle(fontSize: 15),
       autocorrect: false,
       decoration: InputDecoration(
         isDense: true,
         hintText: widget.hint,
-        prefixIcon: const Icon(Icons.search, size: 20),
+        prefixIcon: const Icon(Icons.search, size: 21),
         suffixIcon:
             _controller.text.isEmpty
                 ? null
@@ -108,7 +108,7 @@ class _SearchFieldState extends State<SearchField> {
                 ),
         filled: true,
         fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.6),
-        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(vertical: 11),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -162,11 +162,11 @@ class FilterPill extends StatelessWidget {
           customBorder: const StadiumBorder(),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: selected ? accent : colors.onSurfaceVariant,
               ),
@@ -190,14 +190,19 @@ class MethodBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = methodColor(method);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         method,
-        style: mono(size: 11, color: color, weight: FontWeight.w700),
+        style: mono(
+          size: 12,
+          color: color,
+          weight: FontWeight.w700,
+          height: 1.2,
+        ),
       ),
     );
   }
@@ -228,7 +233,12 @@ class StatusBadge extends StatelessWidget {
       ),
       child: Text(
         call.statusCode?.toString() ?? 'ERR',
-        style: mono(size: 11.5, color: Colors.white, weight: FontWeight.w700),
+        style: mono(
+          size: 12.5,
+          color: Colors.white,
+          weight: FontWeight.w700,
+          height: 1.2,
+        ),
       ),
     );
   }
@@ -255,7 +265,7 @@ class SectionTitle extends StatelessWidget {
             child: Text(
               title.toUpperCase(),
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 letterSpacing: 0.8,
                 fontWeight: FontWeight.w700,
                 color: Theme.of(context).colorScheme.primary,
@@ -269,7 +279,124 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-/// Rows of names and values, e.g. headers. Tap a row to copy its value.
+/// A row of a [FieldTable].
+class FieldRow {
+  /// Creates a row showing [name] and [value], with an optional [type] such
+  /// as `File`.
+  const FieldRow(this.name, this.value, {this.type});
+
+  /// The name, e.g. a header name.
+  final String name;
+
+  /// The value.
+  final String value;
+
+  /// A short label for the kind of value, e.g. `Text` or `File`.
+  final String? type;
+}
+
+/// A table of names and values, like Postman's: a header row, then one row
+/// per field. Tap a row to copy its value.
+class FieldTable extends StatelessWidget {
+  /// Creates a table of [rows], or shows [emptyText] if there are none.
+  const FieldTable({super.key, required this.rows, this.emptyText = 'None'});
+
+  /// The rows.
+  final List<FieldRow> rows;
+
+  /// Shown when [rows] is empty.
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Text(
+          emptyText,
+          style: TextStyle(fontSize: 14.5, color: colors.onSurfaceVariant),
+        ),
+      );
+    }
+    final hasTypes = rows.any((row) => row.type != null);
+    final heading = TextStyle(
+      fontSize: 11.5,
+      letterSpacing: 0.8,
+      fontWeight: FontWeight.w700,
+      color: colors.onSurfaceVariant,
+    );
+
+    Widget cells(Widget name, Widget value, Widget? type) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 2, child: name),
+        const SizedBox(width: 12),
+        Expanded(flex: 3, child: value),
+        if (hasTypes) SizedBox(width: 52, child: type),
+      ],
+    );
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: cells(
+              Text('KEY', style: heading),
+              Text('VALUE', style: heading),
+              Text('TYPE', style: heading, textAlign: TextAlign.end),
+            ),
+          ),
+          for (final row in rows) ...[
+            Divider(height: 1, color: colors.outlineVariant),
+            InkWell(
+              onTap: () => copyText(context, row.value, 'Copied ${row.name}'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
+                child: cells(
+                  Text(
+                    row.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                  Text(row.value, style: mono(color: colors.onSurface)),
+                  row.type == null
+                      ? null
+                      : Text(
+                        row.type!,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.primary,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A [FieldTable] of [entries], e.g. headers.
 class KeyValueTable extends StatelessWidget {
   /// Creates a table of [entries], or shows [emptyText] if there are none.
   const KeyValueTable(this.entries, {super.key, this.emptyText = 'None'});
@@ -281,61 +408,10 @@ class KeyValueTable extends StatelessWidget {
   final String emptyText;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    if (entries.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(emptyText, style: TextStyle(color: colors.outline)),
-      );
-    }
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      elevation: 0,
-      color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (final (index, entry) in entries.indexed) ...[
-            if (index > 0) const Divider(height: 1, indent: 12),
-            InkWell(
-              onTap:
-                  () => copyText(context, entry.value, 'Copied ${entry.key}'),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: Text(
-                        entry.key,
-                        style: mono(
-                          size: 12,
-                          weight: FontWeight.w600,
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        entry.value,
-                        style: mono(size: 12, color: colors.onSurface),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => FieldTable(
+    rows: [for (final entry in entries) FieldRow(entry.key, entry.value)],
+    emptyText: emptyText,
+  );
 }
 
 /// A centered icon and message for empty lists.
@@ -370,14 +446,17 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             if (message != null) ...[
               const SizedBox(height: 6),
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.outline),
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ],

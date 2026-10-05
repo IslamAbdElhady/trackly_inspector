@@ -114,7 +114,7 @@ void main() {
 
     await tester.tap(find.text('Response'));
     await tester.pumpAndSettle();
-    expect(find.text('Preview'), findsOneWidget);
+    expect(find.text('Pretty'), findsOneWidget);
     expect(find.textContaining('"Ali"'), findsOneWidget);
   });
 

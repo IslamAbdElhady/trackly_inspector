@@ -51,20 +51,26 @@ ThemeData inspectorTheme(Brightness brightness) {
   );
 }
 
-/// A monospaced text style for URLs, headers, and bodies.
+/// A monospaced text style for URLs, values, and bodies.
 TextStyle mono({
-  double size = 12.5,
+  double size = 13.5,
   Color? color,
   FontWeight? weight,
   Color? background,
+  double height = 1.5,
 }) => TextStyle(
   fontFamily: 'Menlo',
-  fontFamilyFallback: const ['Roboto Mono', 'Courier New', 'monospace'],
+  fontFamilyFallback: const [
+    'SF Mono',
+    'Roboto Mono',
+    'Droid Sans Mono',
+    'monospace',
+  ],
   fontSize: size,
   color: color,
   fontWeight: weight,
   backgroundColor: background,
-  height: 1.45,
+  height: height,
 );
 
 /// The color of an HTTP method.

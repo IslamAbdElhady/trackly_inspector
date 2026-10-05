@@ -26,8 +26,10 @@ touch anything on screen to find the request its data came from.
 - **Inspect mode**: touch any text or image in your app to find the request
   it came from, with the matching field highlighted in the response.
 - **Copy as cURL**, or copy the URL, either body, or a full report.
-- **JSON viewer**: a collapsible tree like Chrome's Preview tab, and a raw view
-  with syntax colors and search highlighting.
+- **Bodies laid out like Postman**: Params, Headers, and Body tabs. JSON is
+  pretty-printed with line numbers and colors, or shown as a collapsible tree,
+  or raw. Form bodies, URL-encoded or multipart, are shown as key/value tables.
+  Search highlights matches and jumps to them.
 - **Logs tab**: logs from [trackly_logger](https://pub.dev/packages/trackly_logger)
   next to your requests, with levels, tags, errors, and stack traces.
 - **Three ways to open it**: a draggable floating button, a two-finger long

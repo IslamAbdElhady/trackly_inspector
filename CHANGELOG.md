@@ -1,3 +1,19 @@
+## 0.3.1
+
+* Requests and responses are laid out like Postman:
+  * Separate **Params**, **Headers**, and **Body** tabs, with counts, instead
+    of one long page. Responses have **Body** and **Headers**.
+  * The body shows its type (JSON, Form URL-encoded, Form data, Text) and
+    size.
+  * JSON opens **Pretty**-printed with line numbers, and can switch to
+    **Tree** or **Raw**.
+  * URL-encoded form bodies are shown as a decoded key/value table, and
+    multipart forms as a table with a Text/File type for each field.
+  * Search scrolls to the first match.
+* Clearer text: larger sizes, the system font for names and messages, a
+  monospaced font only for code and values, and higher contrast.
+* The title and the request tabs no longer overflow with large text sizes.
+
 ## 0.3.0
 
 * Uses `trackly_logger` 0.2.0, which this package re-exports:

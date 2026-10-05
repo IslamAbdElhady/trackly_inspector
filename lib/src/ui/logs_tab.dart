@@ -159,16 +159,16 @@ class _LogTileState extends State<_LogTile> {
           children: [
             Row(
               children: [
-                Text(record.level.emoji, style: const TextStyle(fontSize: 12)),
+                Text(record.level.emoji, style: const TextStyle(fontSize: 13)),
                 const SizedBox(width: 6),
                 Text(
                   record.level.label,
-                  style: mono(size: 11, color: color, weight: FontWeight.w700),
+                  style: mono(size: 12, color: color, weight: FontWeight.w700),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   formatTime(record.time),
-                  style: mono(size: 11, color: colors.outline),
+                  style: mono(size: 12, color: colors.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -176,7 +176,7 @@ class _LogTileState extends State<_LogTile> {
                     record.tag ?? '',
                     overflow: TextOverflow.ellipsis,
                     style: mono(
-                      size: 11,
+                      size: 12,
                       color: colors.primary,
                       weight: FontWeight.w600,
                     ),
@@ -195,12 +195,16 @@ class _LogTileState extends State<_LogTile> {
               record.message,
               maxLines: _expanded ? null : 3,
               overflow: _expanded ? null : TextOverflow.ellipsis,
-              style: mono(size: 12.5, color: colors.onSurface),
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.4,
+                color: colors.onSurface,
+              ),
             ),
             if (_expanded && hasDetails) ...[
               const SizedBox(height: 8),
               if (record.location case final location?)
-                _Detail('at', location.link, colors.outline),
+                _Detail('at', location.link, colors.onSurfaceVariant),
               if (extra != null && extra.isNotEmpty)
                 _Detail(
                   'extra',
@@ -243,11 +247,15 @@ class _Detail extends StatelessWidget {
             width: 44,
             child: Text(
               label,
-              style: mono(size: 11, color: grey, weight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(
-            child: SelectableText(value, style: mono(size: 11.5, color: color)),
+            child: SelectableText(value, style: mono(size: 12.5, color: color)),
           ),
         ],
       ),
