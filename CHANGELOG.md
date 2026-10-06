@@ -1,3 +1,23 @@
+## 0.4.0
+
+* Supports every platform: Android, iOS, web, macOS, Windows, and Linux.
+  pub.dev listed only Android, iOS, and web because the package imported
+  `sensors_plus`, which supports only those.
+* Shaking to open moved to its own import. If you used `TracklyTrigger.shake`,
+  wrap your app in `TracklyShakeDetector` instead:
+
+  ```dart
+  import 'package:trackly_inspector/shake.dart';
+
+  MaterialApp(
+    builder: (context, child) => TracklyInspector(
+      child: TracklyShakeDetector(child: child!),
+    ),
+  );
+  ```
+
+  `TracklyTrigger.shake` is deprecated and no longer does anything.
+
 ## 0.3.1
 
 * Requests and responses are laid out like Postman:

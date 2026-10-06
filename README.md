@@ -37,6 +37,7 @@ touch anything on screen to find the request its data came from.
 - **Dio and `http`** out of the box, and a small API for any other client.
 - **Safe by default**: off in release builds, can hide sensitive headers, and
   never blocks your app's gestures.
+- **Every platform**: Android, iOS, web, macOS, Windows, and Linux.
 - Works in right-to-left apps; the inspector itself always reads left to right.
 
 ## Getting started
@@ -143,7 +144,6 @@ TracklyInspector(
   triggers: const {
     TracklyTrigger.bubble,    // Draggable floating button.
     TracklyTrigger.longPress, // Two fingers held on the screen.
-    TracklyTrigger.shake,     // Shaking a real Android or iOS device.
   },
   child: child!,
 )
@@ -151,6 +151,23 @@ TracklyInspector(
 
 Pass an empty set to open it only from code. By default, the bubble and the
 long press are on.
+
+To also open it by shaking the device, wrap your app in `TracklyShakeDetector`:
+
+```dart
+import 'package:trackly_inspector/shake.dart';
+
+MaterialApp(
+  builder: (context, child) => TracklyInspector(
+    child: TracklyShakeDetector(child: child!),
+  ),
+);
+```
+
+Shaking works on real Android and iOS devices. It lives in its own import
+because the sensor plugin it uses supports only Android, iOS, and the web, but
+it does nothing on other platforms, so it's safe in apps that also run on the
+desktop.
 
 Tune what's recorded through the shared controller, e.g. in `main()`:
 
@@ -208,8 +225,8 @@ if (call != null) {
 
 - `TracklyHttpClient` reads each response fully so it can record the body.
   Server-sent event streams (`text/event-stream`) are passed through untouched.
-- Shaking uses the accelerometer, which simulators don't have. Use the bubble
-  or the long press there.
+- Shaking uses the accelerometer, which simulators and computers don't have.
+  Use the bubble or the long press there.
 
 ## License
 

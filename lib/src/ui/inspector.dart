@@ -20,7 +20,12 @@ enum TracklyTrigger {
   /// Holding two fingers on the screen for a moment.
   longPress,
 
-  /// Shaking the device. Needs a real Android or iOS device.
+  /// No longer does anything. Wrap your app in `TracklyShakeDetector` from
+  /// `package:trackly_inspector/shake.dart` instead.
+  @Deprecated(
+    'Wrap your app in TracklyShakeDetector from '
+    'package:trackly_inspector/shake.dart instead.',
+  )
   shake,
 }
 
@@ -116,6 +121,15 @@ class _TracklyInspectorState extends State<TracklyInspector> {
         _controller.logOutput,
       ]);
       TracklyLogger.output = _installedOutput!;
+    }
+    if (_controller.enabled &&
+        // ignore: deprecated_member_use_from_same_package
+        widget.triggers.contains(TracklyTrigger.shake)) {
+      debugPrint(
+        'TracklyInspector: TracklyTrigger.shake no longer does anything. Wrap '
+        'your app in TracklyShakeDetector from '
+        'package:trackly_inspector/shake.dart instead.',
+      );
     }
   }
 
@@ -268,36 +282,32 @@ class _TracklyInspectorState extends State<TracklyInspector> {
     if (!_controller.enabled) return widget.child;
 
     final triggers = widget.triggers;
-    return ShakeDetector(
-      enabled: triggers.contains(TracklyTrigger.shake) && !_inspecting,
-      onShake: _open,
-      child: MultiFingerLongPress(
-        enabled:
-            triggers.contains(TracklyTrigger.longPress) &&
-            !_isOpen &&
-            !_inspecting,
-        onTrigger: _open,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            KeyedSubtree(key: _appKey, child: widget.child),
-            if (triggers.contains(TracklyTrigger.bubble))
-              InspectorBubble(
-                controller: _controller,
-                visible: !_isOpen && !_inspecting,
-                onTap: _open,
-                onLongPress: _startInspect,
+    return MultiFingerLongPress(
+      enabled:
+          triggers.contains(TracklyTrigger.longPress) &&
+          !_isOpen &&
+          !_inspecting,
+      onTrigger: _open,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          KeyedSubtree(key: _appKey, child: widget.child),
+          if (triggers.contains(TracklyTrigger.bubble))
+            InspectorBubble(
+              controller: _controller,
+              visible: !_isOpen && !_inspecting,
+              onTap: _open,
+              onLongPress: _startInspect,
+            ),
+          if (_inspecting)
+            Positioned.fill(
+              child: InspectOverlay(
+                pick: _pick,
+                onPicked: _showSources,
+                onCancel: _stopInspect,
               ),
-            if (_inspecting)
-              Positioned.fill(
-                child: InspectOverlay(
-                  pick: _pick,
-                  onPicked: _showSources,
-                  onCancel: _stopInspect,
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

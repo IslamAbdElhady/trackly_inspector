@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:trackly_inspector/dio.dart';
 import 'package:trackly_inspector/http.dart';
+import 'package:trackly_inspector/shake.dart';
 import 'package:trackly_inspector/trackly_inspector.dart';
 
 final dio = Dio(
@@ -26,14 +27,8 @@ class DemoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
       builder:
-          (context, child) => TracklyInspector(
-            triggers: const {
-              TracklyTrigger.bubble,
-              TracklyTrigger.longPress,
-              TracklyTrigger.shake,
-            },
-            child: child!,
-          ),
+          (context, child) =>
+              TracklyInspector(child: TracklyShakeDetector(child: child!)),
       home: const DemoPage(),
     );
   }

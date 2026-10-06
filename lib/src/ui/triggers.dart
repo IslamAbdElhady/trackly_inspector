@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 import '../core/calls.dart';
 import 'theme.dart';
@@ -280,95 +278,4 @@ class _MultiFingerLongPressState extends State<MultiFingerLongPress> {
       child: widget.child,
     );
   }
-}
-
-/// Calls [onShake] when the device is shaken. Works on Android and iOS
-/// devices; simulators don't report motion.
-class ShakeDetector extends StatefulWidget {
-  /// Creates the detector.
-  const ShakeDetector({
-    super.key,
-    required this.enabled,
-    required this.onShake,
-    required this.child,
-  });
-
-  /// Whether shaking is detected.
-  final bool enabled;
-
-  /// Called when the device is shaken.
-  final VoidCallback onShake;
-
-  /// The app.
-  final Widget child;
-
-  @override
-  State<ShakeDetector> createState() => _ShakeDetectorState();
-}
-
-class _ShakeDetectorState extends State<ShakeDetector> {
-  // Acceleration in m/s², without gravity, that counts as a jolt.
-  static const _threshold = 13.0;
-  static const _window = Duration(milliseconds: 800);
-  static const _cooldown = Duration(milliseconds: 1500);
-
-  StreamSubscription<UserAccelerometerEvent>? _subscription;
-  final _jolts = <DateTime>[];
-  DateTime? _lastShake;
-
-  static bool get _supported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
-
-  @override
-  void initState() {
-    super.initState();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(ShakeDetector oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _sync();
-  }
-
-  void _sync() {
-    if (widget.enabled && _supported && _subscription == null) {
-      _subscription = userAccelerometerEventStream(
-        samplingPeriod: SensorInterval.uiInterval,
-      ).listen(_onEvent, onError: (Object _) {}, cancelOnError: true);
-    } else if (!widget.enabled) {
-      _subscription?.cancel();
-      _subscription = null;
-    }
-  }
-
-  void _onEvent(UserAccelerometerEvent event) {
-    final force = math.sqrt(
-      event.x * event.x + event.y * event.y + event.z * event.z,
-    );
-    if (force < _threshold) return;
-
-    final now = DateTime.now();
-    _jolts
-      ..removeWhere((time) => now.difference(time) > _window)
-      ..add(now);
-    final coolingDown =
-        _lastShake != null && now.difference(_lastShake!) < _cooldown;
-    if (_jolts.length >= 3 && !coolingDown) {
-      _lastShake = now;
-      _jolts.clear();
-      widget.onShake();
-    }
-  }
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
