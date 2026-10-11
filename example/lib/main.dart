@@ -231,7 +231,7 @@ class _DemoPageState extends State<DemoPage> {
                   MaterialPageRoute<void>(builder: (_) => const UsersPage()),
                 ),
             icon: const Icon(Icons.speed_rounded),
-            label: const Text('Open a slow screen (see the Performance tab)'),
+            label: const Text('Open a slow screen'),
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
