@@ -9,6 +9,10 @@ browser's DevTools, inside your app. See every Dio and `http` call with its
 headers and bodies, search them, and copy any request as a cURL command. Or
 touch anything on screen to find the request its data came from.
 
+**[Try the live demo](https://islamabdelhady.github.io/trackly_inspector/)** in
+your browser: tap the round button to open the inspector, or long-press it and
+touch a name or a price.
+
 <p>
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/network.png" width="200" alt="Request list">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/inspect.png" width="200" alt="Inspect mode: the request a price came from">

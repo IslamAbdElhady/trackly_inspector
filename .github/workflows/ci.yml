@@ -33,3 +33,21 @@ jobs:
       - name: Publish dry run
         if: matrix.flutter == 'any'
         run: flutter pub publish --dry-run
+
+  score:
+    name: pub.dev score
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install pana, and the image tools it checks screenshots with
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q webp
+          dart pub global activate pana
+      - name: Supports every platform and keeps every point
+        run: |
+          dart pub global run pana --json --no-warning . > pana.json
+          python3 .github/scripts/check_pana.py pana.json
