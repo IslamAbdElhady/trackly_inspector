@@ -224,7 +224,16 @@ class _DemoPageState extends State<DemoPage> {
               return null;
             }),
           ], onPressed: _run),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const UsersPage()),
+                ),
+            icon: const Icon(Icons.speed_rounded),
+            label: const Text('Open a slow screen (see the Performance tab)'),
+          ),
+          const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: TracklyInspector.show,
             icon: const Icon(Icons.radar_rounded),
@@ -386,6 +395,86 @@ class _LiveDataState extends State<_LiveData> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// A screen that loads in two steps and draws slowly on purpose, so the
+/// Performance tab has something to show.
+class UsersPage extends StatefulWidget {
+  const UsersPage({super.key});
+
+  @override
+  State<UsersPage> createState() => _UsersPageState();
+}
+
+class _UsersPageState extends State<UsersPage> {
+  List<dynamic>? _users;
+  Map<int, int> _postCounts = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final users = await dio.get<List<dynamic>>('/users');
+      // The second request needs the first one's result.
+      final posts = await dio.get<List<dynamic>>(
+        '/posts',
+        queryParameters: {'userId': (users.data!.first as Map)['id']},
+      );
+      if (!mounted) return;
+      setState(() {
+        _users = users.data;
+        _postCounts = {1: posts.data!.length};
+      });
+    } catch (error) {
+      trackly.warning('Could not load users', error: error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final users = _users;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Users')),
+      body:
+          users == null
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index] as Map<String, dynamic>;
+                  return _SlowTile(
+                    name: user['name'] as String,
+                    email: user['email'] as String,
+                    posts: _postCounts[user['id']],
+                  );
+                },
+              ),
+    );
+  }
+}
+
+class _SlowTile extends StatelessWidget {
+  const _SlowTile({required this.name, required this.email, this.posts});
+
+  final String name;
+  final String email;
+  final int? posts;
+
+  @override
+  Widget build(BuildContext context) {
+    // Wastes a few milliseconds on purpose, like an expensive build would.
+    final watch = Stopwatch()..start();
+    while (watch.elapsedMilliseconds < 4) {}
+    return ListTile(
+      title: Text(name),
+      subtitle: Text(email),
+      trailing: posts == null ? null : Text('$posts posts'),
     );
   }
 }

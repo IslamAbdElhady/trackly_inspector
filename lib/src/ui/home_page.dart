@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../core/calls.dart';
 import 'logs_tab.dart';
 import 'network_tab.dart';
+import 'performance_tab.dart';
 import 'screens.dart';
 import 'widgets.dart';
 
-/// The inspector's main page, with Network and Logs tabs.
+/// The inspector's main page, with Network, Logs, and Performance tabs.
 class InspectorHomePage extends StatelessWidget {
   /// Creates the page.
   const InspectorHomePage({
@@ -40,7 +41,7 @@ class InspectorHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           leading: const CloseButton(),
@@ -84,6 +85,7 @@ class InspectorHomePage extends StatelessWidget {
                   builder: (_, _) => Text('Logs (${controller.logs.length})'),
                 ),
               ),
+              const Tab(text: 'Performance'),
             ],
           ),
         ),
@@ -91,6 +93,7 @@ class InspectorHomePage extends StatelessWidget {
           children: [
             NetworkTab(controller: controller),
             LogsTab(controller: controller),
+            PerformanceTab(controller: controller),
           ],
         ),
       ),

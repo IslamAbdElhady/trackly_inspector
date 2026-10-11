@@ -7,7 +7,8 @@
 An in-app network and log inspector for Flutter, like the Network tab of your
 browser's DevTools, inside your app. See every Dio and `http` call with its
 headers and bodies, search them, and copy any request as a cURL command. Or
-touch anything on screen to find the request its data came from.
+touch anything on screen to find the request its data came from, and see which
+screens are slow to load or to draw.
 
 **[Try the live demo](https://islamabdelhady.github.io/trackly_inspector/)** in
 your browser: tap the round button to open the inspector, or long-press it and
@@ -36,6 +37,8 @@ touch a name or a price.
   Search highlights matches and jumps to them.
 - **Logs tab**: logs from [trackly_logger](https://pub.dev/packages/trackly_logger)
   next to your requests, with levels, tags, errors, and stack traces.
+- **Performance tab**: how long each screen took to load and which requests it
+  waited on, its slow and frozen frames, and memory use.
 - **Three ways to open it**: a draggable floating button, a two-finger long
   press, or shaking the device. Or from code.
 - **Dio and `http`** out of the box, and a small API for any other client.
@@ -139,6 +142,35 @@ class CartService with TracklyLoggerMixin {
 }
 ```
 
+## Performance
+
+The Performance tab lists each screen the app showed, newest first, with:
+
+- **Load time**: from the screen appearing until the requests it made when it
+  opened finished, with a waterfall of those requests. You can see whether a
+  screen waited on one slow request, or on requests made one after another.
+- **Frames**: how many frames it drew, how many were slow (took longer than
+  the display allows, e.g. 16.7 ms at 60 Hz, to build or to draw) or frozen
+  (over 700 ms), and the slowest ones.
+- **Memory**: the most the app used while the screen showed. Not available on
+  the web.
+
+Screens are named after their route, or else their page widget, e.g.
+`ProductsPage`. Dialogs and bottom sheets count toward the screen below them,
+and the inspector's own frames aren't counted.
+
+Debug builds are much slower than release builds. For real numbers, measure a
+profile build (`flutter run --profile`), where the inspector is on, or a
+release build with the inspector turned on (see
+[Release builds](#release-builds)).
+
+Screens that don't have their own route, such as the tabs of a bottom
+navigation bar, can be marked from code:
+
+```dart
+TracklyInspector.controller.startScreen('Cart');
+```
+
 ## Configuration
 
 Choose how the inspector opens:
@@ -178,6 +210,7 @@ Tune what's recorded through the shared controller, e.g. in `main()`:
 ```dart
 TracklyInspector.controller
   ..maxCalls = 500 // Oldest calls are dropped first. Default: 300.
+  ..maxScreenVisits = 50 // For the Performance tab. Default: 100.
   ..maxBodyLength = 1024 * 1024 // Longer bodies are truncated. Default: 512K.
   ..redactedHeaders = {'authorization', 'cookie'}; // Shown as ••••••.
 ```

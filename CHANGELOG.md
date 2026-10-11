@@ -1,3 +1,22 @@
+## 0.5.0
+
+* A **Performance** tab, listing each screen the app showed with:
+  * How long it took to load: from appearing until the requests it made when
+    it opened finished, with a waterfall of those requests.
+  * Its frames: how many were slow or frozen, the slowest ones, and the
+    average build and raster times.
+  * The most memory the app used while it showed, except on the web.
+
+  Debug builds are much slower than release builds, so measure a profile
+  build for real numbers.
+* `TracklyInspectorController` adds `screenVisits`, `clearScreenVisits()`,
+  `maxScreenVisits`, and `startScreen()` for screens without their own route,
+  such as tabs.
+* A request's **Screen** is now the page widget, e.g. `ProductsPage`, when its
+  route has no name.
+* Try it in your browser: [live demo](https://islamabdelhady.github.io/trackly_inspector/).
+  The example also has a slow screen to show the Performance tab.
+
 ## 0.4.0
 
 * Supports every platform: Android, iOS, web, macOS, Windows, and Linux.

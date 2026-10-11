@@ -12,13 +12,39 @@ bool isInspectorRoute(Route<dynamic> route) =>
 class _Screen {
   _Screen(Route<dynamic> route)
     : route = WeakReference(route),
-      name = route.settings.name;
+      name = describeRoute(route);
 
   final WeakReference<Route<dynamic>> route;
   final String? name;
 }
 
 final _screens = Expando<_Screen>('trackly_inspector.screen');
+
+/// A name for the screen [route] shows: the route's name, or else the type
+/// of its page widget, e.g. `ProductsPage`.
+String describeRoute(Route<dynamic> route) {
+  final name = route.settings.name;
+  if (name != null && name.isNotEmpty) return name;
+
+  // A ModalRoute builds its page inside a RepaintBoundary, a Builder, and
+  // often a Semantics. The first other widget is the page.
+  var element = switch (route) {
+    ModalRoute<dynamic>(:final subtreeContext?) => subtreeContext as Element,
+    _ => null,
+  };
+  for (var depth = 0; element != null && depth < 6; depth++) {
+    final widget = element.widget;
+    if (widget is! RepaintBoundary &&
+        widget is! Builder &&
+        widget is! Semantics) {
+      return widget.runtimeType.toString();
+    }
+    Element? child;
+    element.visitChildElements((found) => child ??= found);
+    element = child;
+  }
+  return route.runtimeType.toString();
+}
 
 /// The route on top of [navigator].
 Route<dynamic>? topRouteOf(NavigatorState navigator) {

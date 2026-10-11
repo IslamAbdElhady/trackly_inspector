@@ -17,4 +17,5 @@ library;
 export 'package:trackly_logger/trackly_logger.dart';
 
 export 'src/core/calls.dart';
+export 'src/core/performance.dart' show TracklyFrame, TracklyScreenVisit;
 export 'src/ui/inspector.dart' show TracklyInspector, TracklyTrigger;

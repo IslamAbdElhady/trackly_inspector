@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:trackly_logger/trackly_logger.dart';
 
 import 'body.dart';
+import 'performance.dart';
 
 /// A field of a multipart form request body.
 @immutable
@@ -150,6 +151,7 @@ class TracklyInspectorController extends ChangeNotifier {
   TracklyInspectorController({
     this.maxCalls = 300,
     this.maxLogs = 1000,
+    this.maxScreenVisits = 100,
     this.maxBodyLength = 512 * 1024,
     Set<String> redactedHeaders = const {},
   }) : redactedHeaders = {
@@ -165,6 +167,9 @@ class TracklyInspectorController extends ChangeNotifier {
 
   /// The number of log records kept. The oldest are dropped first.
   int maxLogs;
+
+  /// The number of screen visits kept. The oldest are dropped first.
+  int maxScreenVisits;
 
   /// Bodies longer than this many characters are truncated.
   int maxBodyLength;
@@ -185,6 +190,10 @@ class TracklyInspectorController extends ChangeNotifier {
 
   /// The recorded log records, oldest first.
   List<TracklyRecord> get logs => List.unmodifiable(_logs);
+
+  /// The screens the app showed, with their load times, frames, and
+  /// requests, oldest first.
+  List<TracklyScreenVisit> get screenVisits => screenTimelineOf(this).visits;
 
   /// The most recent call, if any.
   TracklyHttpCall? get lastCall => _calls.isEmpty ? null : _calls.last;
@@ -293,6 +302,17 @@ class TracklyInspectorController extends ChangeNotifier {
     _logs.clear();
     _scheduleNotify();
   }
+
+  /// Records that the screen called [name] is now showing.
+  ///
+  /// `TracklyInspector` does this for each route. Call it for screens that
+  /// don't have their own route, such as the tabs of a bottom navigation
+  /// bar.
+  void startScreen(String name) => screenTimelineOf(this).start(name);
+
+  /// Removes all recorded screen visits, except the one showing now, which
+  /// starts over.
+  void clearScreenVisits() => screenTimelineOf(this).clear();
 
   Map<String, String> _redact(Map<String, String> headers) => {
     for (final header in headers.entries)

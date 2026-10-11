@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:trackly_logger/trackly_logger.dart';
 
 import '../core/calls.dart';
+import '../core/memory.dart';
+import '../core/performance.dart';
 import '../core/source_finder.dart';
 import 'call_page.dart';
 import 'element_picker.dart';
@@ -106,8 +109,17 @@ class _TracklyInspectorState extends State<TracklyInspector> {
   NavigatorState? _navigator;
   TracklyOutput? _previousOutput;
   TracklyOutput? _installedOutput;
+  Route<dynamic>? _topRoute;
+  Route<dynamic>? _screenRoute;
+  var _recordingFrames = false;
+
+  // Persistent frame callbacks can't be removed, so one is added for the
+  // life of the app, and serves whichever inspector is showing.
+  static var _trackingScreens = false;
 
   TracklyInspectorController get _controller => TracklyInspector.controller;
+
+  ScreenTimeline get _screens => screenTimelineOf(_controller);
 
   @override
   void initState() {
@@ -121,6 +133,18 @@ class _TracklyInspectorState extends State<TracklyInspector> {
         _controller.logOutput,
       ]);
       TracklyLogger.output = _installedOutput!;
+    }
+    if (_controller.enabled) {
+      _recordingFrames = true;
+      _screens.frameBudget = _frameBudget();
+      SchedulerBinding.instance.addTimingsCallback(_recordFrames);
+      if (!_trackingScreens) {
+        _trackingScreens = true;
+        SchedulerBinding.instance.addPersistentFrameCallback(
+          (_) => TracklyInspector._state?._trackScreen(),
+        );
+      }
+      SchedulerBinding.instance.addPostFrameCallback((_) => _trackScreen());
     }
     if (_controller.enabled &&
         // ignore: deprecated_member_use_from_same_package
@@ -136,6 +160,9 @@ class _TracklyInspectorState extends State<TracklyInspector> {
   @override
   void dispose() {
     _controller.removeListener(_recordScreens);
+    if (_recordingFrames) {
+      SchedulerBinding.instance.removeTimingsCallback(_recordFrames);
+    }
     if (TracklyInspector._state == this) TracklyInspector._state = null;
     if (_installedOutput != null &&
         identical(TracklyLogger.output, _installedOutput)) {
@@ -166,7 +193,11 @@ class _TracklyInspectorState extends State<TracklyInspector> {
   }
 
   /// Remembers which screen was showing when each new call was made, so
-  /// inspect mode can list the calls from the current screen.
+  /// inspect mode can list the calls from the current screen, and the
+  /// Performance tab can show each screen's requests.
+  ///
+  /// Runs in a microtask after a call starts, so calls made while a new
+  /// screen builds belong to that screen.
   void _recordScreens() {
     final calls = _controller.calls;
     if (!mounted || calls.isEmpty || calls.last.id <= _lastAttributedCall) {
@@ -174,13 +205,45 @@ class _TracklyInspectorState extends State<TracklyInspector> {
     }
     final navigator = _findNavigator();
     final route = navigator == null ? null : topRouteOf(navigator);
-    if (route != null && !isInspectorRoute(route)) {
-      for (final call in calls.reversed) {
-        if (call.id <= _lastAttributedCall) break;
-        recordScreen(call, route);
-      }
+    for (final call in calls) {
+      if (call.id <= _lastAttributedCall) continue;
+      if (route != null && !isInspectorRoute(route)) recordScreen(call, route);
+      _screens.addCall(call);
     }
     _lastAttributedCall = calls.last.id;
+  }
+
+  /// Starts a screen visit when a new page comes to the top of the
+  /// navigator. Runs after every frame is built.
+  void _trackScreen() {
+    if (!mounted || !_controller.enabled) return;
+    final navigator = _findNavigator();
+    final route = navigator == null ? null : topRouteOf(navigator);
+    if (route == null || identical(route, _topRoute)) return;
+    _topRoute = route;
+    if (isInspectorRoute(route)) return _screens.pause();
+    _screens.resume();
+    // Dialogs and sheets belong to the screen below them.
+    if (route is PopupRoute || identical(route, _screenRoute)) return;
+    _screenRoute = route;
+    _screens.start(describeRoute(route));
+  }
+
+  void _recordFrames(List<FrameTiming> timings) {
+    _screens
+      ..frameBudget = _frameBudget()
+      ..addFrames(timings)
+      ..recordMemory(currentMemory());
+  }
+
+  /// The time a frame has at the display's refresh rate, e.g. 16.7 ms at
+  /// 60 Hz.
+  static Duration _frameBudget() {
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    final refreshRate = views.isEmpty ? 0.0 : views.first.display.refreshRate;
+    return Duration(
+      microseconds: 1000000 ~/ (refreshRate >= 30 ? refreshRate : 60),
+    );
   }
 
   /// Shows [route] with the bubble hidden, and returns its result.
