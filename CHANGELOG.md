@@ -1,3 +1,8 @@
+## 0.5.1
+
+* New screenshots of the current design, including the Performance tab, and
+  an animated demo of inspect mode.
+
 ## 0.5.0
 
 * A **Performance** tab, listing each screen the app showed with:

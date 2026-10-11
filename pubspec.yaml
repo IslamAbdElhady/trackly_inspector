@@ -1,6 +1,6 @@
 name: trackly_inspector
 description: An in-app network, log, and performance inspector for Flutter. See every Dio and http call with headers and bodies, copy it as cURL, and find slow screens.
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/IslamAbdElhady/trackly_inspector
 issue_tracker: https://github.com/IslamAbdElhady/trackly_inspector/issues
 
@@ -29,6 +29,8 @@ dev_dependencies:
     sdk: flutter
 
 screenshots:
+  - description: Touch a price to find the request it came from, with the field highlighted.
+    path: screenshots/demo.gif
   - description: Every request with its method, status, duration, and size.
     path: screenshots/network.png
   - description: Touch anything on screen to find the request its data came from.
@@ -39,3 +41,7 @@ screenshots:
     path: screenshots/details.png
   - description: Logs from trackly_logger, with errors and stack traces.
     path: screenshots/logs.png
+  - description: Each screen's load time, requests, and slow frames.
+    path: screenshots/performance.png
+  - description: A screen's requests as a waterfall, and its frames.
+    path: screenshots/screen.png

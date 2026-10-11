@@ -15,11 +15,17 @@ your browser: tap the round button to open the inspector, or long-press it and
 touch a name or a price.
 
 <p>
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/demo.gif" width="300" alt="Inspect mode: long-press the button, touch a price, and see the request it came from, with the field highlighted">
+</p>
+
+<p>
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/network.png" width="200" alt="Request list">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/inspect.png" width="200" alt="Inspect mode: the request a price came from">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/source.png" width="200" alt="The matching field, highlighted in the response">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/details.png" width="200" alt="Request details with cURL">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/logs.png" width="200" alt="Logs">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/performance.png" width="200" alt="Each screen's load time and slow frames">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/screen.png" width="200" alt="A screen's requests as a waterfall, and its frames">
 </p>
 
 ## Features
