@@ -15,6 +15,9 @@
 * Toolbar buttons are a little more compact, so the body size fits on narrow
   phones.
 * Screenshots of the filters.
+* Builds without warnings on Flutter 3.50, which deprecates importing
+  `material.dart` and `cupertino.dart` from Flutter. Flutter 3.29 and later
+  are still supported.
 
 ## 0.5.1
 

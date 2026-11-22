@@ -1,4 +1,9 @@
+// Flutter 3.50 deprecates these imports for the material_ui and
+// cupertino_ui packages, which need Flutter 3.47 or later. Importing
+// them from Flutter keeps older versions working.
+// ignore: deprecated_member_use
 import 'package:flutter/cupertino.dart' show DefaultCupertinoLocalizations;
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
