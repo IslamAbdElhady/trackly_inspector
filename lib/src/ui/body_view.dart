@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../core/calls.dart';
+import '../core/json_filter.dart';
 import '../core/source_finder.dart';
+import 'filter_panel.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -22,7 +24,8 @@ enum _Kind { empty, json, urlEncoded, multipart, text, binary }
 
 /// Shows a request or response body the way Postman does: JSON pretty-printed
 /// with line numbers or as a collapsible tree, form bodies as key/value
-/// tables, and everything else as numbered lines. Has search and copy.
+/// tables, and everything else as numbered lines. Has search, copy, and
+/// filters for lists of objects.
 class BodyView extends StatefulWidget {
   /// Creates a view of [body].
   const BodyView({
@@ -64,6 +67,7 @@ class BodyView extends StatefulWidget {
 class _BodyViewState extends State<BodyView> {
   static const _highlightLimit = 150000;
   static const _lineHeight = 21.0;
+  static const _maxMatches = 5000;
 
   final _scroll = ScrollController();
   final _targetKey = GlobalKey();
@@ -72,11 +76,30 @@ class _BodyViewState extends State<BodyView> {
   Object? _json;
   String _pretty = '';
   List<(String, String, bool)> _fields = const [];
-  var _searching = false;
-  var _query = '';
   final _expanded = <String>{r'$'};
   var _revealed = false;
   int? _scrolledTo;
+
+  // Search.
+  var _searching = false;
+  var _query = '';
+  // Whether search was opened with its button, so the field takes focus.
+  // Not when it opens by itself to show where a value was found.
+  var _focusSearch = false;
+  String _lower = '';
+  List<int> _lineStarts = const [0];
+  List<String>? _linePaths;
+  String? _matchQuery;
+  List<(int, int)> _matchList = const [];
+  var _current = 0;
+
+  // Filters.
+  List<FilterableList> _lists = const [];
+  FilterableList? _list;
+  final _filters = <String, FieldFilter>{};
+  var _filtering = false;
+  var _filterGeneration = 0;
+  List<int>? _filteredCache;
 
   @override
   void initState() {
@@ -123,6 +146,25 @@ class _BodyViewState extends State<BodyView> {
   }
 
   void _parse() {
+    _focusSearch = false;
+    _lists = const [];
+    _parseBody();
+    _lower = _pretty.toLowerCase();
+    _lineStarts = [
+      0,
+      for (var i = 0; i < _pretty.length; i++)
+        if (_pretty.codeUnitAt(i) == 0x0A) i + 1,
+    ];
+    _linePaths = null;
+    _matchQuery = null;
+    _current = 0;
+    _list = _lists.firstOrNull;
+    _filters.clear();
+    _filtering = false;
+    _filteredCache = null;
+  }
+
+  void _parseBody() {
     final body = widget.body;
     final type = widget.contentType?.toLowerCase() ?? '';
     _json = null;
@@ -163,6 +205,7 @@ class _BodyViewState extends State<BodyView> {
         _json = json;
         _kind = _Kind.json;
         _pretty = const JsonEncoder.withIndent('  ').convert(json);
+        _lists = findFilterableLists(json);
         final highlight = widget.highlightPath;
         if (highlight != null) {
           // Open just the objects and arrays that lead to the highlighted
@@ -249,6 +292,15 @@ class _BodyViewState extends State<BodyView> {
           curve: Curves.easeOut,
         );
       }
+      // Rows above it that were just laid out for the first time can be
+      // taller than estimated (long values wrap) and push it away, so line
+      // it up again until they have settled.
+      for (var pass = 0; pass < 3; pass++) {
+        await WidgetsBinding.instance.endOfFrame;
+        final settled = _targetKey.currentContext;
+        if (!mounted || settled == null || !settled.mounted) return;
+        await Scrollable.ensureVisible(settled, alignment: 0.3);
+      }
     });
   }
 
@@ -270,33 +322,190 @@ class _BodyViewState extends State<BodyView> {
         break;
     }
 
-    final mode = _searching && _kind != _Kind.urlEncoded ? _Mode.pretty : _mode;
-    final content = switch (mode) {
-      _Mode.pretty => _lines(context),
-      _Mode.tree => _tree(context),
-      _Mode.table => _table(context),
-      _Mode.raw => _raw(context),
-    };
-    final selectable = mode == _Mode.pretty || mode == _Mode.raw;
+    final _Mode mode;
+    if (_searching && _kind != _Kind.urlEncoded) {
+      mode = _Mode.pretty;
+    } else if (_hasFilters) {
+      mode = _Mode.tree;
+    } else {
+      mode = _mode;
+    }
+    final filtered = _filtered;
+    final Widget content;
+    if (_filtering) {
+      content = _filterPanel();
+    } else if (filtered != null && filtered.isEmpty) {
+      content = EmptyState(
+        icon: Icons.filter_alt_off_rounded,
+        title: 'No matching ${_list!.name}',
+        message: 'Change or clear the filters.',
+      );
+    } else {
+      final view = switch (mode) {
+        _Mode.pretty => _lines(context),
+        _Mode.tree => _tree(context),
+        _Mode.table => _table(context),
+        _Mode.raw => _raw(context),
+      };
+      final selectable = mode == _Mode.pretty || mode == _Mode.raw;
+      content = Scrollbar(
+        controller: _scroll,
+        child: selectable ? SelectionArea(child: view) : view,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _toolbar(context, mode),
         const Divider(),
-        Expanded(
-          child: Scrollbar(
-            controller: _scroll,
-            child: selectable ? SelectionArea(child: content) : content,
-          ),
-        ),
+        Expanded(child: content),
       ],
+    );
+  }
+
+  bool get _hasFilters => _filters.values.any((filter) => !filter.isEmpty);
+
+  /// The indices of the items that match the filters, or `null` if there are
+  /// no filters.
+  List<int>? get _filtered {
+    final list = _list;
+    if (list == null || !_hasFilters) return null;
+    return _filteredCache ??= list.apply(_filters);
+  }
+
+  void _setFilter(String field, FieldFilter filter) => setState(() {
+    if (filter.isEmpty) {
+      _filters.remove(field);
+    } else {
+      _filters[field] = filter;
+    }
+    _filteredCache = null;
+  });
+
+  void _clearFilters() => setState(() {
+    _filters.clear();
+    _filteredCache = null;
+    _filterGeneration++;
+  });
+
+  void _toggleFilters() => setState(() {
+    _searching = false;
+    _query = '';
+    if (_filtering) {
+      _showFiltered();
+    } else {
+      _filtering = true;
+    }
+  });
+
+  /// Closes the filters and shows the matching items, with the first one
+  /// opened up to the values that matched.
+  void _showFiltered() {
+    _filtering = false;
+    final list = _list;
+    final filtered = _filtered;
+    if (list != null && filtered != null && filtered.isNotEmpty) {
+      final first = '${list.path}[${filtered.first}]';
+      _expanded.add(first);
+      void visit(Object? value, String path) {
+        if (value is Map) {
+          for (final entry in value.entries) {
+            visit(entry.value, '$path.${entry.key}');
+          }
+        } else if (value is List) {
+          for (var i = 0; i < value.length; i++) {
+            visit(value[i], '$path[$i]');
+          }
+        } else if (_filterOn(path)?.matchesValue(value) ?? false) {
+          _expanded.addAll(ancestorPaths(path));
+        }
+      }
+
+      visit(list.items[filtered.first], first);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
+    });
+  }
+
+  /// The filter on the field that the value at [path] belongs to, e.g. the
+  /// filter on `tires[].size` for `$.cars[3].tires[1].size`.
+  FieldFilter? _filterOn(String path) {
+    final list = _list;
+    final prefix = '${list?.path}[';
+    if (list == null || !path.startsWith(prefix)) return null;
+    final end = path.indexOf(']', prefix.length);
+    if (end == -1) return null;
+    var field = path.substring(end + 1).replaceAll(RegExp(r'\[\d+\]'), '[]');
+    if (field.startsWith('.')) field = field.substring(1);
+    final filter = _filters[field];
+    return filter == null || filter.isEmpty ? null : filter;
+  }
+
+  Widget _filterPanel() {
+    final list = _list!;
+    return FilterPanel(
+      lists: _lists,
+      list: list,
+      filters: _filters,
+      matches: _filtered?.length ?? list.items.length,
+      generation: _filterGeneration,
+      onList:
+          (other) => setState(() {
+            _list = other;
+            _filters.clear();
+            _filteredCache = null;
+            _filterGeneration++;
+          }),
+      onChanged: _setFilter,
+      onClear: _clearFilters,
+      onDone: () => setState(_showFiltered),
+    );
+  }
+
+  Widget _filterSummary(BuildContext context) {
+    final list = _list!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, right: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${_filtered!.length} of ${list.items.length} ${list.name}',
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              TextButton(onPressed: _clearFilters, child: const Text('Clear')),
+            ],
+          ),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final MapEntry(key: name, value: filter) in _filters.entries)
+                ActiveFilterChip(
+                  label: describeFilter(name, filter, list.field(name)),
+                  onTap: () => setState(() => _filtering = true),
+                  onRemove: () => _setFilter(name, const FieldFilter()),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _toolbar(BuildContext context, _Mode mode) {
     final colors = Theme.of(context).colorScheme;
     final modes = _modes;
+    final filters = _filters.values.where((filter) => !filter.isEmpty).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       child: Column(
@@ -306,22 +515,27 @@ class _BodyViewState extends State<BodyView> {
             children: [
               _TypeChip(_typeLabel),
               const SizedBox(width: 10),
-              Text(
-                formatBytes(widget.size),
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: colors.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  formatBytes(widget.size),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
               const Spacer(),
-              if (mode == _Mode.tree) ...[
+              if (mode == _Mode.tree && !_filtering) ...[
                 IconButton(
                   tooltip: 'Expand all',
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.unfold_more, size: 21),
                   onPressed: () => setState(_expandAll),
                 ),
                 IconButton(
                   tooltip: 'Collapse all',
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.unfold_less, size: 21),
                   onPressed:
                       () => setState(() {
@@ -334,27 +548,50 @@ class _BodyViewState extends State<BodyView> {
               if (_kind == _Kind.json || _kind == _Kind.text)
                 IconButton(
                   tooltip: 'Search in body',
+                  visualDensity: VisualDensity.compact,
                   isSelected: _searching,
                   icon: const Icon(Icons.manage_search, size: 23),
                   onPressed:
                       () => setState(() {
                         _searching = !_searching;
+                        _focusSearch = _searching;
                         _query = '';
+                        _current = 0;
+                        if (_searching) {
+                          // Search looks through the whole body, so it
+                          // replaces the filters.
+                          _filtering = false;
+                          _filters.clear();
+                          _filteredCache = null;
+                        }
                       }),
+                ),
+              if (_list != null)
+                IconButton(
+                  tooltip: 'Filter ${_list!.name}',
+                  visualDensity: VisualDensity.compact,
+                  isSelected: _filtering || filters > 0,
+                  icon: Badge(
+                    isLabelVisible: filters > 0,
+                    backgroundColor: colors.primary,
+                    textColor: colors.onPrimary,
+                    label: Text('$filters'),
+                    child: const Icon(Icons.filter_list_rounded, size: 23),
+                  ),
+                  onPressed: _toggleFilters,
                 ),
               IconButton(
                 tooltip: 'Copy body',
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.copy_rounded, size: 21),
-                onPressed:
-                    () => copyText(
-                      context,
-                      _copyText(mode),
-                      '${widget.title} copied',
-                    ),
+                onPressed: () {
+                  final (text, message) = _copy(mode);
+                  copyText(context, text, message);
+                },
               ),
             ],
           ),
-          if (modes.length > 1 && !_searching)
+          if (modes.length > 1 && !_searching && !_filtering && filters == 0)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: SegmentedButton<_Mode>(
@@ -375,30 +612,104 @@ class _BodyViewState extends State<BodyView> {
                     (selection) => setState(() => _mode = selection.first),
               ),
             ),
-          if (_searching)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, right: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SearchField(
-                      hint: 'Search in ${widget.title.toLowerCase()}',
-                      initialValue: _query,
-                      onChanged: (value) => setState(() => _query = value),
+          if (_searching) _searchBar(context),
+          if (filters > 0 && !_filtering) _filterSummary(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _searchBar(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final matches = _matches();
+    final current = _currentMatch;
+    final path = _pathOfMatch();
+    final count =
+        matches.length == _maxMatches ? '$_maxMatches+' : '${matches.length}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SearchField(
+                  hint: 'Search in ${widget.title.toLowerCase()}',
+                  initialValue: _query,
+                  autofocus: _focusSearch,
+                  onChanged:
+                      (value) => setState(() {
+                        _query = value;
+                        _current = 0;
+                      }),
+                  onSubmitted: (_) => _step(1),
+                ),
+              ),
+              if (normalizeQuery(_query).isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 10,
+                    right: matches.length > 1 ? 0 : 8,
+                  ),
+                  child: Text(
+                    matches.isEmpty ? 'No matches' : '${current + 1} of $count',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: colors.onSurfaceVariant,
                     ),
                   ),
-                  if (_query.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: Text(
-                        '${_matches().length} found',
-                        style: TextStyle(
-                          fontSize: 13.5,
+                ),
+              if (matches.length > 1) ...[
+                IconButton(
+                  tooltip: 'Previous match',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                  onPressed: () => _step(-1),
+                ),
+                IconButton(
+                  tooltip: 'Next match',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  onPressed: () => _step(1),
+                ),
+              ],
+            ],
+          ),
+          if (path != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 8),
+              child: Tooltip(
+                message: 'Copy path',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap:
+                      () => copyText(context, displayPath(path), 'Path copied'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.subdirectory_arrow_right_rounded,
+                          size: 17,
                           color: colors.onSurfaceVariant,
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            displayPath(path),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: mono(size: 13, color: colors.primary),
+                          ),
+                        ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
               ),
             ),
         ],
@@ -406,11 +717,31 @@ class _BodyViewState extends State<BodyView> {
     );
   }
 
-  String _copyText(_Mode mode) => switch (_kind) {
-    _Kind.multipart => _fields.map((f) => '${f.$1}: ${f.$2}').join('\n'),
-    _Kind.json when mode != _Mode.raw => _pretty,
-    _ => widget.body ?? '',
-  };
+  /// Moves [delta] matches forward or back, wrapping around at the ends.
+  void _step(int delta) {
+    final count = _matches().length;
+    if (count == 0) return;
+    setState(() => _current = (_currentMatch + delta) % count);
+  }
+
+  /// The text to copy, and the message to show after copying it.
+  (String, String) _copy(_Mode mode) {
+    final list = _list;
+    final filtered = _filtered;
+    if (list != null && filtered != null) {
+      final items = [for (final index in filtered) list.items[index]];
+      return (
+        const JsonEncoder.withIndent('  ').convert(items),
+        'Copied ${filtered.length} ${list.name}',
+      );
+    }
+    final text = switch (_kind) {
+      _Kind.multipart => _fields.map((f) => '${f.$1}: ${f.$2}').join('\n'),
+      _Kind.json when mode != _Mode.raw => _pretty,
+      _ => widget.body ?? '',
+    };
+    return (text, '${widget.title} copied');
+  }
 
   void _expandAll() {
     void visit(Object? value, String path) {
@@ -430,19 +761,53 @@ class _BodyViewState extends State<BodyView> {
     visit(_json, r'$');
   }
 
+  /// Where the query is found in the body, as start and end offsets. Kept
+  /// until the query or the body changes.
   List<(int, int)> _matches() {
     // Only the query is normalized (e.g. Arabic digits typed on an Arabic
     // keyboard), so offsets in the body stay right.
     final query = normalizeQuery(_query);
-    if (query.isEmpty) return const [];
-    final text = _pretty.toLowerCase();
+    if (query == _matchQuery) return _matchList;
+    _matchQuery = query;
+    if (query.isEmpty) return _matchList = const [];
     final matches = <(int, int)>[];
-    var index = text.indexOf(query);
-    while (index != -1 && matches.length < 5000) {
+    var index = _lower.indexOf(query);
+    while (index != -1 && matches.length < _maxMatches) {
       matches.add((index, index + query.length));
-      index = text.indexOf(query, index + query.length);
+      index = _lower.indexOf(query, index + query.length);
     }
-    return matches;
+    return _matchList = matches;
+  }
+
+  /// The index of the match to show, or -1 if there are none.
+  int get _currentMatch {
+    final count = _matches().length;
+    return count == 0 ? -1 : _current.clamp(0, count - 1);
+  }
+
+  /// The line [offset] is on, counting from 0.
+  int _lineOf(int offset) {
+    var low = 0;
+    var high = _lineStarts.length - 1;
+    while (low < high) {
+      final middle = (low + high + 1) >> 1;
+      if (_lineStarts[middle] <= offset) {
+        low = middle;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return low;
+  }
+
+  /// The JSON path of the value the current match is in, e.g.
+  /// `$.cars[3].engine.hp`.
+  String? _pathOfMatch() {
+    final current = _currentMatch;
+    if (_kind != _Kind.json || current == -1) return null;
+    final paths = _linePaths ??= jsonLinePaths(_json);
+    final line = _lineOf(_matches()[current].$1);
+    return paths.length == _lineStarts.length ? paths[line] : null;
   }
 
   /// The body as numbered lines, with JSON colors and search highlights.
@@ -452,6 +817,7 @@ class _BodyViewState extends State<BodyView> {
     final dark = theme.brightness == Brightness.dark;
     final text = _pretty;
     final matches = _matches();
+    final current = _currentMatch;
     final segments =
         _kind == _Kind.json && text.length <= _highlightLimit
             ? _jsonSegments(text, _JsonColors.of(dark))
@@ -461,14 +827,16 @@ class _BodyViewState extends State<BodyView> {
         text,
         segments,
         matches,
+        current,
         dark ? const Color(0x99A16207) : const Color(0xFFFDE68A),
+        dark ? const Color(0xFFC2410C) : const Color(0xFFFB923C),
       ),
     );
 
-    // Scroll to the first match whenever it moves to another line.
+    // Scroll to the current match whenever it moves to another line.
     var target = -1;
-    if (matches.isNotEmpty) {
-      target = '\n'.allMatches(text.substring(0, matches.first.$1)).length;
+    if (current != -1) {
+      target = _lineOf(matches[current].$1);
       if (target != _scrolledTo) {
         _scrolledTo = target;
         _scrollToRow(target);
@@ -572,7 +940,16 @@ class _BodyViewState extends State<BodyView> {
       }
     }
 
-    visit(null, _json, 0, r'$');
+    final list = _list;
+    final filtered = _filtered;
+    if (list != null && filtered != null) {
+      // Just the matching items, by their index in the whole list.
+      for (final index in filtered) {
+        visit('$index', list.items[index], 0, '${list.path}[$index]');
+      }
+    } else {
+      visit(null, _json, 0, r'$');
+    }
     final highlight = nodes.indexWhere(
       (node) => node.path == widget.highlightPath,
     );
@@ -590,7 +967,14 @@ class _BodyViewState extends State<BodyView> {
       itemBuilder:
           (context, index) => _NodeRow(
             key: index == highlight ? _targetKey : null,
-            highlighted: index == highlight,
+            highlighted:
+                index == highlight ||
+                (filtered != null &&
+                    !nodes[index].isContainer &&
+                    (_filterOn(
+                          nodes[index].path,
+                        )?.matchesValue(nodes[index].value) ??
+                        false)),
             node: nodes[index],
             expanded: _expanded.contains(nodes[index].path),
             colors: colors,
@@ -829,12 +1213,15 @@ List<_Segment> _jsonSegments(String text, _JsonColors colors) => [
       (match.start, match.end, colors.number),
 ];
 
-/// Splits [text] into spans colored by [segments], with [matches] highlighted.
+/// Splits [text] into spans colored by [segments], with [matches] highlighted
+/// and the one at [current] highlighted more strongly.
 List<TextSpan> _spans(
   String text,
   List<_Segment> segments,
   List<(int, int)> matches,
+  int current,
   Color highlight,
+  Color currentHighlight,
 ) {
   if (segments.isEmpty && matches.isEmpty) return [TextSpan(text: text)];
 
@@ -876,7 +1263,12 @@ List<TextSpan> _spans(
                 ? null
                 : TextStyle(
                   color: color,
-                  backgroundColor: highlighted ? highlight : null,
+                  backgroundColor:
+                      !highlighted
+                          ? null
+                          : match == current
+                          ? currentHighlight
+                          : highlight,
                 ),
       ),
     );

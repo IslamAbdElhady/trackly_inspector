@@ -23,6 +23,8 @@ touch a name or a price.
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/inspect.png" width="200" alt="Inspect mode: the request a price came from">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/source.png" width="200" alt="The matching field, highlighted in the response">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/details.png" width="200" alt="Request details with cURL">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/filter.png" width="200" alt="Filters built from the fields in the response">
+  <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/filter_result.png" width="200" alt="Just the matching items, with the matching values highlighted">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/logs.png" width="200" alt="Logs">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/performance.png" width="200" alt="Each screen's load time and slow frames">
   <img src="https://raw.githubusercontent.com/IslamAbdElhady/trackly_inspector/main/screenshots/screen.png" width="200" alt="A screen's requests as a waterfall, and its frames">
@@ -40,7 +42,15 @@ touch a name or a price.
 - **Bodies laid out like Postman**: Params, Headers, and Body tabs. JSON is
   pretty-printed with line numbers and colors, or shown as a collapsible tree,
   or raw. Form bodies, URL-encoded or multipart, are shown as key/value tables.
-  Search highlights matches and jumps to them.
+  Search highlights every match, steps through them one by one, and shows the
+  JSON path of each, like `cars[3].engine.hp`.
+- **Response filters, built from the response**: when a body has a list of
+  objects, every field of its items becomes a filter, nested ones too
+  (`engine.hp`, `tires[].size`). Fields with a few repeated values get chips
+  with counts, numbers get a range, and other text gets a "contains" box. See
+  just the matching items, e.g. 12 of 500, with the matching values
+  highlighted. The counts also show gaps in your data, like items that are
+  missing a field.
 - **Logs tab**: logs from [trackly_logger](https://pub.dev/packages/trackly_logger)
   next to your requests, with levels, tags, errors, and stack traces.
 - **Performance tab**: how long each screen took to load and which requests it

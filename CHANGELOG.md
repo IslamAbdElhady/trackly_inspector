@@ -1,3 +1,21 @@
+## 0.6.0
+
+* **Response filters, built from the response.** When a JSON body has a list
+  of objects, a filter button shows every field of its items, nested ones
+  too, like `engine.hp` or `tires[].size`:
+  * Fields with a few repeated values get chips with how many items have
+    each one, plus `null` and `missing` if some items don't have a value.
+  * Numbers get a "from … to" range.
+  * Other text, and values that no two items share, get a "contains" box.
+  The body then shows just the matching items, by their index in the list,
+  with the matching values highlighted. Copy copies just those items.
+* **Search in a body steps through the matches**: up and down buttons, or
+  the keyboard's search key, with "3 of 47" and the JSON path of the current
+  match, which you can tap to copy. The search box takes focus when opened.
+* Toolbar buttons are a little more compact, so the body size fits on narrow
+  phones.
+* Screenshots of the filters.
+
 ## 0.5.1
 
 * New screenshots of the current design, including the Performance tab, and

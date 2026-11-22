@@ -55,6 +55,9 @@ class SearchField extends StatefulWidget {
     required this.hint,
     required this.onChanged,
     this.initialValue = '',
+    this.onSubmitted,
+    this.icon = Icons.search,
+    this.autofocus = false,
   });
 
   /// The placeholder text.
@@ -65,6 +68,16 @@ class SearchField extends StatefulWidget {
 
   /// Called with the new query.
   final ValueChanged<String> onChanged;
+
+  /// Called when the keyboard's search key is pressed. The keyboard stays
+  /// open, so it can be pressed again.
+  final ValueChanged<String>? onSubmitted;
+
+  /// The icon before the text.
+  final IconData icon;
+
+  /// Whether to focus the field, and so open the keyboard, when it appears.
+  final bool autofocus;
 
   @override
   State<SearchField> createState() => _SearchFieldState();
@@ -88,12 +101,16 @@ class _SearchFieldState extends State<SearchField> {
         setState(() {});
         widget.onChanged(value);
       },
+      autofocus: widget.autofocus,
+      onSubmitted: widget.onSubmitted,
+      onEditingComplete: widget.onSubmitted == null ? null : () {},
+      textInputAction: TextInputAction.search,
       style: const TextStyle(fontSize: 15),
       autocorrect: false,
       decoration: InputDecoration(
         isDense: true,
         hintText: widget.hint,
-        prefixIcon: const Icon(Icons.search, size: 21),
+        prefixIcon: Icon(widget.icon, size: 21),
         suffixIcon:
             _controller.text.isEmpty
                 ? null
@@ -127,6 +144,7 @@ class FilterPill extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.color,
+    this.count,
   });
 
   /// The chip text.
@@ -141,10 +159,23 @@ class FilterPill extends StatelessWidget {
   /// The accent color, or the theme's primary color if `null`.
   final Color? color;
 
+  /// A number shown after [label], e.g. how many items have this value.
+  final int? count;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final accent = color ?? colors.primary;
+    final foreground = selected ? accent : colors.onSurfaceVariant;
+    final text = Text(
+      label,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w600,
+        color: foreground,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: Material(
@@ -163,14 +194,24 @@ class FilterPill extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: selected ? accent : colors.onSurfaceVariant,
-              ),
-            ),
+            child:
+                count == null
+                    ? text
+                    : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: text),
+                        const SizedBox(width: 7),
+                        Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: foreground.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ],
+                    ),
           ),
         ),
       ),

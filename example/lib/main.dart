@@ -115,7 +115,7 @@ class _DemoPageState extends State<DemoPage> {
           _Section('Dio', [
             _Action(
               'GET list',
-              () => dio.get('/posts', queryParameters: {'_limit': 10}),
+              () => dio.get('/posts', queryParameters: {'_limit': 30}),
             ),
             _Action('GET one', () => dio.get('/posts/1')),
             _Action(

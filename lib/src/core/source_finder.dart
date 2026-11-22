@@ -73,6 +73,30 @@ List<String> ancestorPaths(String path) => [
     if (path[i] == '.' || path[i] == '[') path.substring(0, i),
 ];
 
+/// The path of the value on each line of [json] as printed by
+/// `JsonEncoder.withIndent`, which puts every value, and every closing
+/// bracket, on its own line. A closing bracket gets its object's path.
+List<String> jsonLinePaths(Object? json) {
+  final paths = <String>[];
+  void visit(Object? value, String path) {
+    paths.add(path);
+    if (value is Map && value.isNotEmpty) {
+      for (final entry in value.entries) {
+        visit(entry.value, '$path.${entry.key}');
+      }
+      paths.add(path);
+    } else if (value is List && value.isNotEmpty) {
+      for (var i = 0; i < value.length; i++) {
+        visit(value[i], '$path[$i]');
+      }
+      paths.add(path);
+    }
+  }
+
+  visit(json, r'$');
+  return paths;
+}
+
 /// Finds the calls whose responses contain any of [texts] or [imageUrls],
 /// best and most recent matches first.
 List<SourceMatch> findSources({
